@@ -12,7 +12,7 @@ app.get("/", async (req, res) => {
   const requestPath = "/api/futures/v3/orders?status=1&limit=10";
   const timestamp = Date.now() / 1000;
 
-  const prehash = timestamp + method + requestPath;
+  const prehash = timestamp + method.toUpperCase() + requestPath;
   const signature = crypto.createHmac("sha256", secret)
     .update(prehash)
     .digest("base64");
@@ -27,8 +27,20 @@ app.get("/", async (req, res) => {
         "ACCESS-PASSPHRASE": passphrase
       }
     });
-    const data = await response.json();
-    res.json(data);
+
+    const contentType = response.headers.get("content-type");
+    const rawText = await response.text(); // ambil mentah dulu
+
+    if (contentType && contentType.includes("application/json")) {
+      const json = JSON.parse(rawText);
+      res.json(json);
+    } else {
+      res.status(500).send({
+        error: "Expected JSON but received something else",
+        contentType,
+        raw: rawText
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
